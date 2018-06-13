@@ -17,7 +17,7 @@ do
 	cp -R -f $SOLUTION_DIR/$PROJ/$PROJECT_OUTPUT_FOLDER/* $PUBLISH_DIRECTORY/$PROJ
 done
 
-(cd $PUBLISH_DIRECTORY && tar -zcvf $PUBLISH_DIRECTORY/$PACKAGE_NAME.tar.gz *)
+cd $PUBLISH_DIRECTORY && tar -zcvf $PUBLISH_DIRECTORY/$PACKAGE_NAME.tar.gz * && cd -
 
 if `command -v zip >/dev/null`
 then

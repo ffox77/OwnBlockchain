@@ -1,11 +1,6 @@
 #!/usr/bin/env groovy
 pipeline {
   agent any
-  parameters {
-        string(name: 'MAJOR_NUMBER', defaultValue: '0', description: 'Major number for this build')
-        string(name: 'MINOR_NUMBER', defaultValue: '3', description: 'Minor number for this build')
-        string(name: 'BUILD', defaultValue: '0', description: '')
-    }
   stages {
     stage('Pre Build') {
       steps {
@@ -14,7 +9,7 @@ pipeline {
     }
     stage('Build') {
       steps {
-        sh 'bash ./Build/update_build_numbers.sh ./Source/AssemblyInfo.fs $MAJOR_NUMBER $MINOR_NUMBER $BUILD $BUILD_NUMBER'
+        sh 'bash ./Build/update_build_numbers.sh ./Source/AssemblyInfo.fs $BUILD_NUMBER'
         sh 'dotnet publish $SOLUTION_PATH -c $BUILD_CONFIG -o $PROJECT_OUTPUT_FOLDER'
       }
     }

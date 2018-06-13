@@ -52,3 +52,7 @@ type Config () =
     static member ValidatorAddress
         with get () =
             config.["ValidatorAddress"]
+
+     static member ListeningAddresses
+        with get () =
+            config.["ListeningAddresses"]

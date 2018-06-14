@@ -8,7 +8,7 @@ open Chainium.Common
 
 type Config () =
 
-    static let appDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)
+    static let appDir = Directory.GetCurrentDirectory()
 
     static let config =
         (

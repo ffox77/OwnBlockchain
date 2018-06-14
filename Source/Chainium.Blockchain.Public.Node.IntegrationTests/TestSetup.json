@@ -9,31 +9,31 @@
       "GenesisAddress": "CHQcJKysWbbqyRm5ho44jexA8radTZzNQQ2",
       "ListeningAddresses": "http://localhost:5001",
       "InitialBalance": "100"
-    },
-    {
-      "DbEngineType": "SQLite",
-      "DbConnectionString": "Data Source=chainium_public_blockchain.db",
-      "ValidatorAddress": "CHWEqcNJtWrqqgHUJuTKXMYaTSeKuPuaEvS",
-      "GenesisAddress": "CHQcJKysWbbqyRm5ho44jexA8radTZzNQQ2",
-      "ListeningAddresses": "http://localhost:5002",
-      "InitialBalance": "100"
-    },
-    {
-      "DbEngineType": "PostgreSQL",
-      "DbConnectionString": "server=localhost;database=node1;user id=postgres;password=Jedan1!;searchpath=chainium",
-      "ValidatorAddress": "CHcVeoEazBCc7LsNHa7RzYX9PfzF6JmN8cr",
-      "GenesisAddress": "CHQcJKysWbbqyRm5ho44jexA8radTZzNQQ2",
-      "ListeningAddresses": "http://localhost:6001",
-      "InitialBalance": "100"
-    },
-    {
-      "DbEngineType": "PostgreSQL",
-      "DbConnectionString": "server=localhost;database=node2;user id=postgres;password=Jedan1!;searchpath=chainium",
-      "ValidatorAddress": "CHS3xB7kmnHEna8GSV6sNKGGSdb3sE8sZgL",
-      "GenesisAddress": "CHQcJKysWbbqyRm5ho44jexA8radTZzNQQ2",
-      "ListeningAddresses": "http://localhost:6002",
-      "InitialBalance": "100"
-    }
+    }//,
+    //{
+    //  "DbEngineType": "SQLite",
+    //  "DbConnectionString": "Data Source=chainium_public_blockchain.db",
+    //  "ValidatorAddress": "CHWEqcNJtWrqqgHUJuTKXMYaTSeKuPuaEvS",
+    //  "GenesisAddress": "CHQcJKysWbbqyRm5ho44jexA8radTZzNQQ2",
+    //  "ListeningAddresses": "http://localhost:5002",
+    //  "InitialBalance": "100"
+    //},
+    //{
+    //  "DbEngineType": "PostgreSQL",
+    //  "DbConnectionString": "server=localhost;database=node1;user id=postgres;password=Jedan1!;searchpath=chainium",
+    //  "ValidatorAddress": "CHcVeoEazBCc7LsNHa7RzYX9PfzF6JmN8cr",
+    //  "GenesisAddress": "CHQcJKysWbbqyRm5ho44jexA8radTZzNQQ2",
+    //  "ListeningAddresses": "http://localhost:6001",
+    //  "InitialBalance": "100"
+    //},
+    //{
+    //  "DbEngineType": "PostgreSQL",
+    //  "DbConnectionString": "server=localhost;database=node2;user id=postgres;password=Jedan1!;searchpath=chainium",
+    //  "ValidatorAddress": "CHS3xB7kmnHEna8GSV6sNKGGSdb3sE8sZgL",
+    //  "GenesisAddress": "CHQcJKysWbbqyRm5ho44jexA8radTZzNQQ2",
+    //  "ListeningAddresses": "http://localhost:6002",
+    //  "InitialBalance": "100"
+    //}
 
   ]
 }

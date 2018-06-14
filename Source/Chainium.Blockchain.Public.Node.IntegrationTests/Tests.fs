@@ -16,6 +16,8 @@ open Chainium.Blockchain.Public.Core.DomainTypes
 open Newtonsoft.Json.Linq
 open Microsoft.Data.Sqlite
 open Chainium.Common
+open System.Diagnostics
+open Giraffe
 
 let addressToString (ChainiumAddress a) = a
 
@@ -66,28 +68,50 @@ let testSetup =
 let private nodeSettings =
         testSetup.["Nodes"]
 
-let private listeningAddress (setup : JToken) =
-    setup.["ListeningAddresses"].Value<string>()
+let private baseDataFolder = testSetup.["Data"].Value<string>()
 
-let private nodeAddress (setup : JToken) =
-    setup.["ValidatorAddress"].Value<string>()
+let private nodeAssembly = testSetup.["NodeAssemblyPath"].Value<string>()
+
+type private NodeSetupConfig =
+    {
+        ConnectionString : string
+        ListeningAddress : string
+        InitialAmount : decimal
+        NodeName : string
+        Signer : WalletInfo
+        DataPath : string
+        Setup : JToken
+    }
 
 let private connectionString (setup : JToken) nodePath =
-        let connString = setup.["DbConnectionString"].Value<string>()
-        let dbType = setup.["DbEngineType"].Value<string>()
-        if dbType = "SQLite" then
-            let dbConn = new SqliteConnection(connString)
+    let connString = setup.["DbConnectionString"].Value<string>()
+    let dbType = setup.["DbEngineType"].Value<string>()
+    if dbType = "SQLite" then
+        let dbConn = new SqliteConnection(connString)
 
-            if dbConn.DataSource |> Path.IsPathRooted |> not then
-                Path.Combine(nodePath, dbConn.DataSource)
-                |> sprintf "Data Source=%s"
-            else
-                connString
+        if dbConn.DataSource |> Path.IsPathRooted |> not then
+            Path.Combine(nodePath, dbConn.DataSource)
+            |> sprintf "Data Source=%s"
         else
             connString
+    else
+        connString
 
-let buildNodes () =
+let private nodeSetup signer (setup : JToken) =
+    let nodeName = setup.["ValidatorAddress"].Value<string>()
+    let nodePath = Path.Combine(baseDataFolder,nodeName)
 
+    {
+        ConnectionString = connectionString setup nodePath
+        ListeningAddress = setup.["ListeningAddresses"].Value<string>()
+        NodeName = nodeName
+        InitialAmount = setup.["InitialBalance"].Value<decimal>()
+        Signer = signer
+        DataPath = nodePath
+        Setup = setup
+    }
+
+let private buildNodes (configurations : NodeSetupConfig list) =
     let dataDir newDir =
         if Directory.Exists newDir then
             Directory.Delete(newDir, true)
@@ -95,129 +119,104 @@ let buildNodes () =
         Directory.CreateDirectory newDir
         |> ignore
 
+    dataDir baseDataFolder
 
-    let dataFolder = testSetup.["Data"].Value<string>()
-    dataDir dataFolder
+    let nodeProc (config : NodeSetupConfig) =
+        dataDir config.DataPath
 
-    let nodeAssembly = testSetup.["NodeAssemblyPath"].Value<string>()
+        let appSettings = Path.Combine(config.DataPath,"AppSettings.json")
 
-    let prepareNodeInstance (setup: JToken) =
-        let nodeName = nodeAddress setup
-        let nodeDataDir = Path.Combine(dataFolder,nodeName)
-
-        nodeDataDir
-        |> dataDir
-
-        let appSettings = Path.Combine(nodeDataDir,"AppSettings.json")
-
-        File.WriteAllText (appSettings, setup.ToString())
-
-
-
-
-        let balance = setup.["InitialBalance"].Value<decimal>()
+        File.WriteAllText (appSettings, config.Setup.ToString())
 
         let startInfo = System.Diagnostics.ProcessStartInfo()
         startInfo.FileName <- "dotnet"
         startInfo.Arguments <- nodeAssembly
-        startInfo.WorkingDirectory <- nodeDataDir
+        startInfo.WorkingDirectory <- config.DataPath
         startInfo.UseShellExecute <- true
 
         let nodeProcess = new System.Diagnostics.Process()
         nodeProcess.StartInfo <- startInfo
 
+        nodeProcess
 
-        (
-            listeningAddress setup,
-            connectionString setup nodeDataDir,
-            nodeName,
-            balance,
-            nodeProcess
-        )
-
-    if nodeSettings.HasValues then
-        nodeSettings.Children()
-        |> List.ofSeq
-        |> List.map
-            (
-                fun setup -> prepareNodeInstance setup
-            )
-    else
-        failwith "There is no test setup."
+    configurations
+    |> List.map(nodeProc)
 
 [<Fact>]
 let ``Node - tests`` () =
-    let nodes = buildNodes()
+    let signer = Signing.generateWallet()
+
+    let configs =
+        nodeSettings.Children()
+        |> List.ofSeq
+        |> List.map(fun a -> nodeSetup signer a)
+
+    let nodes = buildNodes configs
+
+    let startNode (nodeProcess : Process) =
+        nodeProcess.Start() |> ignore
 
     try
         // start nodes
         nodes
-        |> List.iter
-            (
-                fun (_,_,_,_,nodeProcess) ->
-                     nodeProcess.Start() |> ignore
-            )
+        |> List.iter(startNode)
 
         // let nodes start
         Thread.Sleep(5000)
 
+
+        // submit transaction
+        let submitToNode config =
+            let client = new HttpClient()
+            client.BaseAddress <- Uri config.ListeningAddress
+
+            let address = addressToString config.Signer.Address
+
+            addBalanceAndAccount config.ConnectionString address 100M
+            addBalanceAndAccount config.ConnectionString config.NodeName config.InitialAmount
+            let tx =
+                {
+                    ActionType = "AccountControllerChange"
+                    ActionData =
+                    {
+                        AccountControllerChangeTxActionDto.AccountHash = address
+                        ControllerAddress = address
+                    }
+                }
+
+            let fee = 1M
+            let nonce = 1L
+            let txDto = newTxDto fee nonce [ tx ]
+
+            let expectedTx = transactionEnvelope config.Signer txDto
+
+            let tx = JsonConvert.SerializeObject(expectedTx)
+            let content = new StringContent(tx, System.Text.Encoding.UTF8, "application/json")
+
+            let result =
+                client.PostAsync("tx", content)
+                |> runTask
+
+            let data =
+                result.Content.ReadAsStringAsync()
+                |> runTask
+                |> JsonConvert.DeserializeObject<SubmitTxResponseDto>
+
+            if data.TxHash.IsNullOrWhiteSpace() then
+                sprintf "Node: %s failed to submit transaction." address
+                |> Some
+            else
+                None
+
         // submit transaction to each node
         let messages =
-            nodes
-            |> List.map
-                (
-                    fun (address, connString, nodeAddress, nodeBalance, _) ->
-                        let client = new HttpClient()
-                        client.BaseAddress <- Uri address
-
-                        let wallet = Signing.generateWallet()
-                        let walletAddress = wallet.Address |> addressToString
-                        addBalanceAndAccount connString walletAddress 100M
-                        addBalanceAndAccount connString nodeAddress nodeBalance
-                        let tx =
-                            {
-                                ActionType = "AccountControllerChange"
-                                ActionData =
-                                {
-                                    AccountControllerChangeTxActionDto.AccountHash = walletAddress
-                                    ControllerAddress = walletAddress
-                                }
-                            }
-
-                        let fee = 1M
-                        let nonce = 1L
-                        let txDto = newTxDto fee nonce [ tx ]
-
-                        let expectedTx = transactionEnvelope wallet txDto
-
-                        let tx = JsonConvert.SerializeObject(expectedTx)
-                        let content = new StringContent(tx, System.Text.Encoding.UTF8, "application/json")
-
-                        let result =
-                            client.PostAsync("tx", content)
-                            |> runTask
-
-                        let data =
-                            result.Content.ReadAsStringAsync()
-                            |> runTask
-                            |> JsonConvert.DeserializeObject<SubmitTxResponseDto>
-
-                        if data.TxHash.IsNullOrWhiteSpace() then
-                            (
-                                true,
-                                sprintf "Node: %s failed to submit transaction." address
-                            )
-                        else
-                            (
-                                false,
-                                ""
-                            )
-                   )
+            configs
+            |> List.map submitToNode
 
         let messagesToPrint =
             messages
-            |> List.filter(fun (k,v) -> k = true)
-            |> List.map(fun (k,v) -> v)
+            |> List.filter(Option.isSome)
+
         if  (messagesToPrint |> Seq.length) > 0 then
             failwithf "%A" messagesToPrint
     finally
@@ -225,6 +224,5 @@ let ``Node - tests`` () =
         nodes
         |> List.iter
             (
-                fun (_,_,_,_,nodeProcess) ->
-                     nodeProcess.Kill()
+                fun nodeProcess -> nodeProcess.Kill()
             )

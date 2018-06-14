@@ -4,6 +4,7 @@ open System
 open System.IO
 open System.Reflection
 open Microsoft.Extensions.Configuration
+open Chainium.Common
 
 type Config () =
 
@@ -55,4 +56,8 @@ type Config () =
 
      static member ListeningAddresses
         with get () =
-            config.["ListeningAddresses"]
+            let configAddress = config.["ListeningAddresses"]
+            if configAddress.IsNullOrWhiteSpace() then
+                "http://*:10717"
+            else
+                configAddress

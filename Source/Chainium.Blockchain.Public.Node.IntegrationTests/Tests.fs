@@ -7,17 +7,14 @@ open System.Threading
 open System.Net.Http
 open Newtonsoft.Json
 open Chainium.Blockchain.Common
-open Chainium.Blockchain.Public.Node
 open Chainium.Blockchain.Public.Core.Dtos
 open Chainium.Blockchain.Public.Crypto
 open Chainium.Blockchain.Public.Data
-open Chainium.Blockchain.Public.Core
 open Chainium.Blockchain.Public.Core.DomainTypes
 open Newtonsoft.Json.Linq
 open Microsoft.Data.Sqlite
 open Chainium.Common
 open System.Diagnostics
-open Giraffe
 
 let addressToString (ChainiumAddress a) = a
 
@@ -27,11 +24,11 @@ let runTask taskToRun =
     |> Async.RunSynchronously
 
 let newTxDto fee nonce actions =
-        {
-            Nonce = nonce
-            Fee = fee
-            Actions = actions
-        }
+    {
+        Nonce = nonce
+        Fee = fee
+        Actions = actions
+    }
 
 let private transactionEnvelope (sender : WalletInfo) txDto =
         let txBytes =
@@ -61,7 +58,7 @@ let addBalanceAndAccount connectionString (address : string) (amount : decimal) 
     |> DbTools.execute connectionString insertStatement
     |> ignore
 
-let testSetup =
+let private testSetup =
     File.ReadAllText("TestSetup.json")
     |> JsonConvert.DeserializeObject :?> JObject
 
@@ -111,7 +108,7 @@ let private nodeSetup signer (setup : JToken) =
         Setup = setup
     }
 
-let private buildNodes (configurations : NodeSetupConfig list) =
+let private prepareNodes (configurations : NodeSetupConfig list) =
     let dataDir newDir =
         if Directory.Exists newDir then
             Directory.Delete(newDir, true)
@@ -151,7 +148,7 @@ let ``Node - tests`` () =
         |> List.ofSeq
         |> List.map(fun a -> nodeSetup signer a)
 
-    let nodes = buildNodes configs
+    let nodes = prepareNodes configs
 
     let startNode (nodeProcess : Process) =
         nodeProcess.Start() |> ignore
@@ -224,5 +221,7 @@ let ``Node - tests`` () =
         nodes
         |> List.iter
             (
-                fun nodeProcess -> nodeProcess.Kill()
+                fun nodeProcess ->
+                    if not nodeProcess.HasExited then
+                        nodeProcess.Kill()
             )

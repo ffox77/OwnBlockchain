@@ -11,6 +11,8 @@ open Org.BouncyCastle.Crypto.Digests
 open Org.BouncyCastle.Crypto.Signers
 open Org.BouncyCastle.Math.EC
 open Chainium.Blockchain.Public.Core.DomainTypes
+open Chainium.Blockchain.Common
+open System.Security.Cryptography.X509Certificates
 
 module Signing =
 
@@ -217,3 +219,14 @@ module Signing =
             else
                 None
         )
+
+    let addressFromPrivateKey (privateKey : PrivateKey) =
+        let publicKey =
+            privateKey
+            |> (fun (PrivateKey key) -> key )
+            |> Conversion.stringToBytes
+            |> BigInteger
+            |> calculatePublicKey
+
+        publicKey.ToByteArray()
+        |> Hashing.chainiumAddress

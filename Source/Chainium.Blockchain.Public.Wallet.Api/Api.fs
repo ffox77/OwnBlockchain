@@ -13,6 +13,7 @@ open Chainium.Blockchain.Public.Crypto
 open Dtos
 
 module Api =
+    open Microsoft.AspNetCore.Cors.Infrastructure
 
     let generateWalletHandler  : HttpHandler = fun next ctx ->
         task {
@@ -41,15 +42,41 @@ module Api =
                 signingRequest.PrivateKey
                 |> PrivateKey
 
-            let itemToSign =
+            let base64Transaction =
                 signingRequest.DataToSign
                 |> Conversion.stringToBytes
+                |> Convert.ToBase64String
+
+            let itemToSign =
+                base64Transaction
+                |> Conversion.stringToBytes
+
+            let signature =
+                Signing.signMessage privateKey itemToSign
 
             let result =
-                Signing.signMessage privateKey itemToSign
+                {
+                    V = signature.V
+                    R = signature.R
+                    S = signature.S
+                    Tx = base64Transaction
+                }
                 |> json
 
             return! result next ctx
+        }
+
+    let getAddressHandler privateKey = fun next ctx ->
+        task {
+            let address =
+                privateKey
+                |> PrivateKey
+                |> Signing.addressFromPrivateKey
+                |> (fun (ChainiumAddress addr) -> addr)
+                |> json
+
+            return! address next ctx
+
         }
 
     let api =
@@ -58,6 +85,7 @@ module Api =
                     choose
                         [
                             route "/wallet" >=> generateWalletHandler
+                            routef "/address/%s" (fun privateKey -> getAddressHandler privateKey)
                         ]
                 POST >=>
                     choose
@@ -72,15 +100,31 @@ module Api =
         clearResponse
         >=> ServerErrors.INTERNAL_ERROR ex.AllMessages
 
-
     let configureApp (app : IApplicationBuilder) =
         // Add Giraffe to the ASP.NET Core pipeline
         app.UseGiraffeErrorHandler(errorHandler)
+            .UseCors("Private")
             .UseGiraffe(api)
 
     let configureServices (services : IServiceCollection) =
-        // Add Giraffe dependencies
-        services.AddGiraffe() |> ignore
+        // TODO: make it configurable
+        let corsPolicies (options : CorsOptions) =
+            options.AddPolicy("Private",
+                (
+                    fun builder ->
+                        builder
+                            .AllowAnyOrigin()
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .WithExposedHeaders("Access-Control-Allow-Origin")
+                            |> ignore)
+                    )
+
+
+        services
+            .AddCors(fun options -> corsPolicies options)
+            // Add Giraffe dependencies
+            .AddGiraffe() |> ignore
 
     let start () =
         WebHostBuilder()

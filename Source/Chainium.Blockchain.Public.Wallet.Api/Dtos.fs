@@ -2,6 +2,7 @@
 
 module Dtos =
     open Chainium.Blockchain.Public.Core.Dtos
+    open Chainium.Blockchain.Public.Core.DomainTypes
 
     [<CLIMutable>]
     type WalletInfoDto =
@@ -15,5 +16,14 @@ module Dtos =
         {
             PrivateKey : string
             DataToSign : string
+        }
+
+    [<CLIMutable>]
+    type SignedDto =
+        {
+            V : string
+            R : string
+            S : string
+            Tx : string
         }
 

@@ -13,6 +13,7 @@ open Chainium.Blockchain.Public.Core.Dtos
 open Chainium.Blockchain.Public.Core.Events
 
 module Api =
+    open Microsoft.AspNetCore.Cors.Infrastructure
 
     let toApiResponse = function
         | Ok data ->
@@ -107,11 +108,27 @@ module Api =
     let configureApp (app : IApplicationBuilder) =
         // Add Giraffe to the ASP.NET Core pipeline
         app.UseGiraffeErrorHandler(errorHandler)
+            .UseCors("Private")
             .UseGiraffe(api)
 
     let configureServices (services : IServiceCollection) =
+        // TODO: make it configurable
+        let corsPolicies (options : CorsOptions) =
+            options.AddPolicy("Private",
+                (
+                    fun builder ->
+                        builder
+                            .AllowAnyOrigin()
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .WithExposedHeaders("Access-Control-Allow-Origin")
+                            |> ignore)
+                    )
+
         // Add Giraffe dependencies
-        services.AddGiraffe() |> ignore
+        services
+            .AddCors(fun options -> corsPolicies options)
+            .AddGiraffe() |> ignore
 
     let start () =
         WebHostBuilder()

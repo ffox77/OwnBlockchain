@@ -1,19 +1,19 @@
 ﻿namespace Chainium.Blockchain.Public.Wallet.Api
 
 open System
+open System.Text
 open Microsoft.AspNetCore.Builder
 open Microsoft.Extensions.DependencyInjection
 open Giraffe
 open Chainium.Common
 open Microsoft.AspNetCore.Hosting
 open Chainium.Blockchain.Public.Core.DomainTypes
-open Chainium.Blockchain.Public.Core.Dtos
+open Microsoft.AspNetCore.Cors.Infrastructure
 open Chainium.Blockchain.Common
 open Chainium.Blockchain.Public.Crypto
 open Dtos
 
 module Api =
-    open Microsoft.AspNetCore.Cors.Infrastructure
 
     let generateWalletHandler  : HttpHandler = fun next ctx ->
         task {
@@ -42,34 +42,31 @@ module Api =
                 signingRequest.PrivateKey
                 |> PrivateKey
 
-            let base64Transaction =
+            let rawTx =
                 signingRequest.DataToSign
-                |> Conversion.stringToBytes
-                |> Convert.ToBase64String
-
-            let itemToSign =
-                base64Transaction
                 |> Conversion.stringToBytes
 
             let signature =
-                Signing.signMessage privateKey itemToSign
+                Signing.signMessage privateKey rawTx
 
             let result =
                 {
                     V = signature.V
                     R = signature.R
                     S = signature.S
-                    Tx = base64Transaction
+                    Tx = rawTx |> Convert.ToBase64String
                 }
                 |> json
 
             return! result next ctx
         }
 
-    let getAddressHandler privateKey = fun next ctx ->
+    let getAddressHandler : HttpHandler = fun next ctx ->
         task {
+            let! privateKey = ctx.BindJsonAsync<PrivateKeyDto>()
+
             let address =
-                privateKey
+                privateKey.PrivateKey
                 |> PrivateKey
                 |> Signing.addressFromPrivateKey
                 |> (fun (ChainiumAddress addr) -> addr)
@@ -85,11 +82,11 @@ module Api =
                     choose
                         [
                             route "/wallet" >=> generateWalletHandler
-                            routef "/address/%s" (fun privateKey -> getAddressHandler privateKey)
                         ]
                 POST >=>
                     choose
                         [
+                            route "/address" >=> getAddressHandler
                             route "/sign" >=> signMessageHandler
                         ]
               ]

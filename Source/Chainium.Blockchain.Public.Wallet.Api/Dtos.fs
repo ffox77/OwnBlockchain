@@ -1,9 +1,6 @@
 ﻿namespace Chainium.Blockchain.Public.Wallet.Api
 
 module Dtos =
-    open Chainium.Blockchain.Public.Core.Dtos
-    open Chainium.Blockchain.Public.Core.DomainTypes
-
     [<CLIMutable>]
     type WalletInfoDto =
         {
@@ -25,5 +22,11 @@ module Dtos =
             R : string
             S : string
             Tx : string
+        }
+
+    [<CLIMutable>]
+    type PrivateKeyDto =
+        {
+            PrivateKey : string
         }
 

@@ -224,7 +224,7 @@ module Signing =
         let publicKey =
             privateKey
             |> (fun (PrivateKey key) -> key )
-            |> Conversion.stringToBytes
+            |> Hashing.decode
             |> BigInteger
             |> calculatePublicKey
 

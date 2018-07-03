@@ -375,32 +375,37 @@ module Workflows =
         | _ -> Result.appError (sprintf "Block %i does not exist" (blockNumber |> fun (BlockNumber b) -> b))
 
     let getTxApi
-        getTxInfo
         getTx
+        verifySignature
         getTxResult
         (txHash : TxHash)
         : Result<GetTxApiResponseDto, AppErrors>
         =
 
-        match getTxInfo txHash with
-        | None -> Result.appError (sprintf "Tx %A does not exists" (txHash |> fun (TxHash t) -> t))
-        | Some txInfo ->
-            result {
-                let! txDto =
-                    getTx txHash
-                    |> Result.map Mapping.txEnvelopeFromDto
-                    >>= fun txEnvelope -> Serialization.deserializeTx txEnvelope.RawTx
+        result {
+            let! txEnvelope =
+                getTx txHash
+                |> Result.map Mapping.txEnvelopeFromDto
+                |> fun txEnvelope -> txEnvelope
 
-                let txResult =
-                    match getTxResult txHash with
-                    | Ok result -> result
-                    | _ ->
-                        {
-                        Status = int16 0
-                        ErrorCode = Nullable()
-                        FailedActionNumber = Nullable()
-                        BlockNumber = int64 0
-                        }
+            let! txDto = Serialization.deserializeTx txEnvelope.RawTx
+            
+            let! senderAddress = Validation.verifyTxSignature verifySignature txEnvelope
 
-                return (Mapping.txToGetTxApiResponseDto txInfo txDto.Actions txResult)
-            }
+            let txResult =
+                match getTxResult txHash with
+                | Ok result -> result
+                | _ ->
+                    {
+                    Status = int16 0
+                    ErrorCode = Nullable()
+                    FailedActionNumber = Nullable()
+                    BlockNumber = int64 0
+                    }
+            return (Mapping.txToGetTxApiResponseDto 
+                (txHash |> fun (TxHash hash) -> hash)
+                (senderAddress |> fun (ChainiumAddress address) -> address) 
+                txDto 
+                txResult
+                )
+        }

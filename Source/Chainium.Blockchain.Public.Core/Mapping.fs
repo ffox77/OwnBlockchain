@@ -340,8 +340,9 @@ module Mapping =
         }
 
     let txToGetTxApiResponseDto
-        (tx : TxInfoDto)
-        (actions : TxActionDto list)
+        (txHash : string)
+        (senderAddress : string)
+        (txDto : TxDto)
         (result : TxResultDto)
         =
 
@@ -351,11 +352,11 @@ module Mapping =
             | _ -> Nullable<int64> result.BlockNumber
 
         {
-            GetTxApiResponseDto.TxHash = tx.TxHash
-            GetTxApiResponseDto.SenderAddress = tx.SenderAddress
-            GetTxApiResponseDto.Nonce = tx.Nonce
-            GetTxApiResponseDto.Fee = tx.Fee
-            GetTxApiResponseDto.Actions = actions
+            GetTxApiResponseDto.TxHash = txHash
+            GetTxApiResponseDto.SenderAddress = senderAddress
+            GetTxApiResponseDto.Nonce = txDto.Nonce
+            GetTxApiResponseDto.Fee = txDto.Fee
+            GetTxApiResponseDto.Actions = txDto.Actions
             GetTxApiResponseDto.Status = byte result.Status
             GetTxApiResponseDto.ErrorCode = result.ErrorCode
             GetTxApiResponseDto.FailedActionNumber = result.FailedActionNumber

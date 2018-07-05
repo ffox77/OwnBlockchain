@@ -341,9 +341,13 @@ module Workflows =
             Mapping.chxBalanceStateDtoToGetAddressApiResponseDto chainiumAddress addressState
             |> Ok
         | None ->
-            chainiumAddress
-            |> fun (ChainiumAddress a) -> sprintf "Chainium address %s does not exist." a
-            |> Result.appError
+            Mapping.chxBalanceStateDtoToGetAddressApiResponseDto 
+                chainiumAddress 
+                {
+                    Amount = decimal 0
+                    Nonce = int64 0
+                }
+            |> Ok
 
     let getAccountApi
         (getAccountState : AccountHash -> AccountStateDto option)
